@@ -16,8 +16,7 @@ def get_user(user_id):
     # SQL Injection vulnerability
     conn = sqlite3.connect('example.db')
     cursor = conn.cursor()
-    query = f"SELECT * FROM users WHERE id = '{user_id}'"  # Vulnerable to SQL Injection
-    cursor.execute(query)
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
     user = cursor.fetchone()
     conn.close()
     return f"User: {user}"
