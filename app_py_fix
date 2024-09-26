@@ -1,35 +1,54 @@
-import logging
-from flask import Flask, request, jsonify
-import subprocess
+from flask import Flask, request, render_template_string, escape
+import sqlite3
 import os
+import subprocess
+import hashlib
+from bcrypt import hashpw, gensalt
 
 app = Flask(__name__)
 
-# Set up basic logging
-logging.basicConfig(level=logging.INFO)
+# Hardcoded credentials (bad practice)
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
+
+@app.route('/user/<user_id>', methods=['GET'])
+def get_user(user_id):
+    # SQL Injection vulnerability
+    conn = sqlite3.connect('example.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    return f"User: {user}"
+
+@app.route('/hash', methods=['POST'])
+def hash_password():
+    password = request.form.get('password')
+    # Use bcrypt for secure password hashing
+    hashed = hashpw(password.encode(), gensalt())
+    return f"Bcrypt Hash: {hashed.decode()}"
+
+ALLOWED_COMMANDS = {
+    "date": ["date"],
+    "uptime": ["uptime"],
+    "whoami": ["whoami"]
+}
 
 @app.route('/command', methods=['POST'])
 def execute_command():
-    """Execute a safe command based on user input."""
     command = request.form.get('command')
-    
-    # Define a whitelist of allowed commands
-    allowed_commands = {
-        "list_files": ["ls", "-l"],   # Example command
-        "current_directory": ["pwd"],
-        # Add other safe commands here
-    }
-
-    if command in allowed_commands:
-        try:
-            output = subprocess.run(allowed_commands[command], capture_output=True, text=True, check=True)
-            return jsonify({"output": output.stdout}), 200
-        except subprocess.CalledProcessError as e:
-            # Log the error details for internal tracking
-            app.logger.error(f"Command execution failed: {e}")  # Log the exception message
-            return jsonify({"error": "Command execution failed"}), 500  # Generic error message
+    if command in ALLOWED_COMMANDS:
+        output = subprocess.run(ALLOWED_COMMANDS[command], capture_output=True, text=True)
+        return f"Command output: {output.stdout}"
     else:
-        return jsonify({"error": "Invalid command"}), 400
+        return "Error: Command not allowed", 400
+
+@app.route('/greet', methods=['GET'])
+def greet_user():
+    name = request.args.get('name', '')
+    # Cross-Site Scripting (XSS): reflecting user input without sanitization
+    return render_template_string(f"<h1>Hello, {{ name }}</h1>", name=escape(name))  # Escaped to prevent XSS
 
 if __name__ == '__main__':
-    app.run(debug=False)  # Ensure debug mode is off in production
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+    app.run(debug=debug_mode)
