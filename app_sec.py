@@ -14,4 +14,4 @@ def get_secret():
     return jsonify({"api_key": API_KEY}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True)  # Enable debug mode for testing
+    app.run(debug=False)  # Enable debug mode for testing
