@@ -50,4 +50,5 @@ def greet_user():
     return render_template_string(f"<h1>Hello, {{ name }}</h1>", name=escape(name))  # Escaped to prevent XSS
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+    app.run(debug=debug_mode)
