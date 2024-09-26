@@ -3,6 +3,7 @@ import sqlite3
 import os
 import subprocess
 import hashlib
+from bcrypt import hashpw, gensalt
 
 app = Flask(__name__)
 
@@ -24,9 +25,9 @@ def get_user(user_id):
 @app.route('/hash', methods=['POST'])
 def hash_password():
     password = request.form.get('password')
-    # Insecure hashing: using SHA-1 which is vulnerable to attacks
-    hashed = hashlib.sha1(password.encode()).hexdigest()
-    return f"SHA-1 Hash: {hashed}"
+    # Use bcrypt for secure password hashing
+    hashed = hashpw(password.encode(), gensalt())
+    return f"Bcrypt Hash: {hashed.decode()}"
 
 ALLOWED_COMMANDS = {
     "date": ["date"],
