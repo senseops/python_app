@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, escape
 import sqlite3
 import os
 import subprocess
@@ -47,7 +47,7 @@ def execute_command():
 def greet_user():
     name = request.args.get('name', '')
     # Cross-Site Scripting (XSS): reflecting user input without sanitization
-    return render_template_string(f"<h1>Hello, {name}</h1>")  # Vulnerable to XSS
+    return render_template_string(f"<h1>Hello, {{ name }}</h1>", name=escape(name))  # Escaped to prevent XSS
 
 if __name__ == '__main__':
     app.run(debug=True)
