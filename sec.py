@@ -11,4 +11,6 @@ def get_secret():
     return jsonify({"api_key": API_KEY}), 200
 
 if __name__ == '__main__':
-    app.run(debug=True)  # Enable debug mode for testing
+    import os
+    debug_mode = os.getenv('FLASK_DEBUG', 'False').lower() in ['true', '1', 't']
+    app.run(debug=debug_mode)  # Enable debug mode based on environment variable
