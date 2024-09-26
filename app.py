@@ -8,8 +8,8 @@ from bcrypt import hashpw, gensalt
 app = Flask(__name__)
 
 # Hardcoded credentials (bad practice)
-DB_USER = 'admin'
-DB_PASSWORD = 'secret'
+DB_USER = os.getenv('DB_USER')
+DB_PASSWORD = os.getenv('DB_PASSWORD')
 
 @app.route('/user/<user_id>', methods=['GET'])
 def get_user(user_id):
