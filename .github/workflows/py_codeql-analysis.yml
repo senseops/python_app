@@ -33,5 +33,10 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
+    - name: "Initialize CodeQL"
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+
     - name: "Run CodeQL analysis"
       uses: github/codeql-action/analyze@v2
