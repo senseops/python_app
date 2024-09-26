@@ -28,12 +28,20 @@ def hash_password():
     hashed = hashlib.sha1(password.encode()).hexdigest()
     return f"SHA-1 Hash: {hashed}"
 
+ALLOWED_COMMANDS = {
+    "date": ["date"],
+    "uptime": ["uptime"],
+    "whoami": ["whoami"]
+}
+
 @app.route('/command', methods=['POST'])
 def execute_command():
     command = request.form.get('command')
-    # Command injection vulnerability
-    output = subprocess.run(command, shell=True, capture_output=True, text=True)
-    return f"Command output: {output.stdout}"
+    if command in ALLOWED_COMMANDS:
+        output = subprocess.run(ALLOWED_COMMANDS[command], capture_output=True, text=True)
+        return f"Command output: {output.stdout}"
+    else:
+        return "Error: Command not allowed", 400
 
 @app.route('/greet', methods=['GET'])
 def greet_user():
