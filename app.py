@@ -18,7 +18,7 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row  # Enable accessing rows by column name
     return conn
 
-@app.route('/user/<user_id>', methods=['GET'])
+@app.route('/user/<int:user_id>', methods=['GET'])
 def get_user(user_id):
     """Retrieve user information based on user ID."""
     try:
@@ -28,12 +28,15 @@ def get_user(user_id):
         cursor.execute(query, (user_id,))
         user = cursor.fetchone()
     except sqlite3.Error as e:
-        return jsonify({"error": "Database error", "details": str(e)}), 500
+        # Log the error for internal tracking, do not expose to user
+        app.logger.error(f"Database error: {str(e)}")
+        return jsonify({"error": "Database error occurred"}), 500
     finally:
         conn.close()
 
     if user:
-        return jsonify(dict(user)), 200  # Return user as JSON
+        # Return user as JSON, but avoid sensitive data
+        return jsonify({"id": user["id"], "name": user["name"]}), 200  
     else:
         return jsonify({"error": "User not found"}), 404
 
@@ -64,7 +67,8 @@ def execute_command():
             output = subprocess.run(allowed_commands[command], capture_output=True, text=True, check=True)
             return jsonify({"output": output.stdout}), 200
         except subprocess.CalledProcessError as e:
-            return jsonify({"error": "Command execution failed", "details": str(e)}), 500
+            app.logger.error(f"Command execution failed: {str(e)}")
+            return jsonify({"error": "Command execution failed"}), 500
     else:
         return jsonify({"error": "Invalid command"}), 400
 
@@ -72,6 +76,8 @@ def execute_command():
 def greet_user():
     """Greet the user with a personalized message."""
     name = request.args.get('name', '')
+    if not name:
+        return jsonify({"error": "Name is required"}), 400
     return render_template_string(f"<h1>Hello, {escape(name)}</h1>"), 200
 
 if __name__ == '__main__':
