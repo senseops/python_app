@@ -15,8 +15,8 @@ def get_user(user_id):
     # SQL Injection vulnerability
     conn = sqlite3.connect('example.db')
     cursor = conn.cursor()
-    query = "SELECT * FROM users WHERE id = ?"
-    cursor.execute(query, (user_id,))
+    query = f"SELECT * FROM users WHERE id = '{user_id}'"  # Vulnerable to SQL Injection
+    cursor.execute(query)
     user = cursor.fetchone()
     conn.close()
     return f"User: {user}"
@@ -28,20 +28,12 @@ def hash_password():
     hashed = hashlib.sha1(password.encode()).hexdigest()
     return f"SHA-1 Hash: {hashed}"
 
-ALLOWED_COMMANDS = {
-    "date": ["date"],
-    "uptime": ["uptime"],
-    "whoami": ["whoami"]
-}
-
 @app.route('/command', methods=['POST'])
 def execute_command():
     command = request.form.get('command')
-    if command in ALLOWED_COMMANDS:
-        output = subprocess.run(ALLOWED_COMMANDS[command], capture_output=True, text=True)
-        return f"Command output: {output.stdout}"
-    else:
-        return "Error: Command not allowed", 400
+    # Command injection vulnerability
+    output = subprocess.run(command, shell=True, capture_output=True, text=True)
+    return f"Command output: {output.stdout}"
 
 @app.route('/greet', methods=['GET'])
 def greet_user():
