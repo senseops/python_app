@@ -36,10 +36,19 @@ def hash_password():
 @app.route('/command', methods=['POST'])
 def execute_command():
     command = request.form.get('command')
-    # Safely execute commands (example command shown here)
-    # Consider validating or sanitizing the command input if necessary
-    output = subprocess.run(command.split(), capture_output=True, text=True)  # Avoid shell=True
-    return f"Command output: {output.stdout}"
+
+    # Define a whitelist of allowed commands
+    allowed_commands = {
+        "list_files": ["ls", "-l"],   # Example command
+        "current_directory": ["pwd"],
+        # Add other safe commands here
+    }
+
+    if command in allowed_commands:
+        output = subprocess.run(allowed_commands[command], capture_output=True, text=True)
+        return f"Command output: {output.stdout}"
+    else:
+        return "Invalid command", 400
 
 @app.route('/greet', methods=['GET'])
 def greet_user():
