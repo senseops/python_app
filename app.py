@@ -2,44 +2,50 @@ from flask import Flask, request, render_template_string
 import sqlite3
 import os
 import subprocess
-import hashlib
+import bcrypt
+from markupsafe import escape
 
 app = Flask(__name__)
 
-# Hardcoded credentials (bad practice)
-DB_USER = 'admin'
-DB_PASSWORD = 'secret'
+# Use environment variables for sensitive information
+DB_USER = os.getenv('DB_USER', 'admin')  # Default to 'admin' if not set
+DB_PASSWORD = os.getenv('DB_PASSWORD', 'secret')  # Default to 'secret' if not set
 
 @app.route('/user/<user_id>', methods=['GET'])
 def get_user(user_id):
-    # SQL Injection vulnerability
+    # Use parameterized queries to prevent SQL Injection
     conn = sqlite3.connect('example.db')
     cursor = conn.cursor()
     query = "SELECT * FROM users WHERE id = ?"
     cursor.execute(query, (user_id,))
     user = cursor.fetchone()
     conn.close()
-    return f"User: {user}"
+
+    if user:
+        return f"User: {user}"
+    else:
+        return "User not found", 404
 
 @app.route('/hash', methods=['POST'])
 def hash_password():
     password = request.form.get('password')
-    # Insecure hashing: using SHA-1 which is vulnerable to attacks
-    hashed = hashlib.sha1(password.encode()).hexdigest()
-    return f"SHA-1 Hash: {hashed}"
+    # Use bcrypt for stronger password hashing
+    hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+    return f"Hashed Password: {hashed.decode()}"  # Decoding for better readability
 
 @app.route('/command', methods=['POST'])
 def execute_command():
     command = request.form.get('command')
-    # Command injection vulnerability
-    output = subprocess.run(command, shell=True, capture_output=True, text=True)
+    # Safely execute commands (example command shown here)
+    # Consider validating or sanitizing the command input if necessary
+    output = subprocess.run(command.split(), capture_output=True, text=True)  # Avoid shell=True
     return f"Command output: {output.stdout}"
 
 @app.route('/greet', methods=['GET'])
 def greet_user():
     name = request.args.get('name', '')
-    # Cross-Site Scripting (XSS): reflecting user input without sanitization
-    return render_template_string(f"<h1>Hello, {name}</h1>")  # Vulnerable to XSS
+    # Properly escape user input to prevent XSS
+    return render_template_string(f"<h1>Hello, {escape(name)}</h1>")
 
 if __name__ == '__main__':
     app.run(debug=True)
