@@ -1,4 +1,4 @@
-name: "CodeQL Analysis"
+name: "Python_CodeQL-Analysis"
 
 on:
   push:
