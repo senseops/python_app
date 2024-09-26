@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template_string
+from flask import Flask, request, render_template_string, jsonify
 import sqlite3
 import os
 import subprocess
@@ -10,33 +10,48 @@ app = Flask(__name__)
 # Use environment variables for sensitive information
 DB_USER = os.getenv('DB_USER', 'admin')  # Default to 'admin' if not set
 DB_PASSWORD = os.getenv('DB_PASSWORD', 'secret')  # Default to 'secret' if not set
+DATABASE = 'example.db'
+
+def get_db_connection():
+    """Create a new database connection."""
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row  # Enable accessing rows by column name
+    return conn
 
 @app.route('/user/<user_id>', methods=['GET'])
 def get_user(user_id):
-    # Use parameterized queries to prevent SQL Injection
-    conn = sqlite3.connect('example.db')
-    cursor = conn.cursor()
-    query = "SELECT * FROM users WHERE id = ?"
-    cursor.execute(query, (user_id,))
-    user = cursor.fetchone()
-    conn.close()
+    """Retrieve user information based on user ID."""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        query = "SELECT * FROM users WHERE id = ?"
+        cursor.execute(query, (user_id,))
+        user = cursor.fetchone()
+    except sqlite3.Error as e:
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+    finally:
+        conn.close()
 
     if user:
-        return f"User: {user}"
+        return jsonify(dict(user)), 200  # Return user as JSON
     else:
-        return "User not found", 404
+        return jsonify({"error": "User not found"}), 404
 
 @app.route('/hash', methods=['POST'])
 def hash_password():
+    """Hash a password using bcrypt."""
     password = request.form.get('password')
-    # Use bcrypt for stronger password hashing
+    if not password:
+        return jsonify({"error": "Password is required"}), 400
+
     hashed = bcrypt.hashpw(password.encode(), bcrypt.gensalt())
-    return f"Hashed Password: {hashed.decode()}"  # Decoding for better readability
+    return jsonify({"hashed_password": hashed.decode()}), 200  # Return hashed password as JSON
 
 @app.route('/command', methods=['POST'])
 def execute_command():
+    """Execute a safe command based on user input."""
     command = request.form.get('command')
-
+    
     # Define a whitelist of allowed commands
     allowed_commands = {
         "list_files": ["ls", "-l"],   # Example command
@@ -45,16 +60,19 @@ def execute_command():
     }
 
     if command in allowed_commands:
-        output = subprocess.run(allowed_commands[command], capture_output=True, text=True)
-        return f"Command output: {output.stdout}"
+        try:
+            output = subprocess.run(allowed_commands[command], capture_output=True, text=True, check=True)
+            return jsonify({"output": output.stdout}), 200
+        except subprocess.CalledProcessError as e:
+            return jsonify({"error": "Command execution failed", "details": str(e)}), 500
     else:
-        return "Invalid command", 400
+        return jsonify({"error": "Invalid command"}), 400
 
 @app.route('/greet', methods=['GET'])
 def greet_user():
+    """Greet the user with a personalized message."""
     name = request.args.get('name', '')
-    # Properly escape user input to prevent XSS
-    return render_template_string(f"<h1>Hello, {escape(name)}</h1>")
+    return render_template_string(f"<h1>Hello, {escape(name)}</h1>"), 200
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=False)  # Ensure debug mode is off in production
